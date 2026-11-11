@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Xóm trọ văn hóa</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#14231c;--mute:#5b6b62;--card:#fff;--line:#d5ddd6;--soft:#eef3ee;--g0:#06261b;--g1:#0f5132;--gold:#f6c90e;
@@ -140,7 +142,7 @@ function loginUI(msg,setup){
  <form id="lf" class="fg" autocomplete="on"><div><label for="l_ph">Số điện thoại</label><input id="l_ph" type="tel" inputmode="tel" autocomplete="username" required></div>
  <div><label for="l_pw">Mật khẩu</label><input id="l_pw" type="password" autocomplete="current-password" required></div>
  <button class="btn pri" type="submit" id="l_go" ${setup===false?'disabled':''}>Đăng nhập</button></form><div class="msg" id="l_msg">${esc(msg||'')}</div>
- ${setup===false?`<div class="note"><b>Chưa đọc được Google Sheet.</b> Hãy tải bản Excel mẫu lên Google Sheet và chọn Tệp → Chia sẻ → Xuất bản lên web → Toàn bộ tài liệu (hoặc cài Apps Script và đặt <code>GOOGLE_SCRIPT_URL</code>). Trong lúc chờ, có thể xem thử giao diện với dữ liệu mẫu (không phải dữ liệu thật, không lưu được).<div class="row" style="justify-content:flex-start;margin-top:8px"><a class="btn" href="/google-sheet/xom-tro-van-hoa.xlsx" download>Tải bản Excel mẫu</a><button class="btn" data-demo>Xem thử với dữ liệu mẫu</button></div></div>`:''}`;
+ ${setup===false?`<div class="note"><b>Chưa đọc được Google Sheet.</b> Hãy tải bản Excel mẫu lên Google Sheet và chọn Tệp → Chia sẻ → Xuất bản lên web → Toàn bộ tài liệu (hoặc đặt <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> để ghi thẳng lên sheet). Trong lúc chờ, có thể xem thử giao diện với dữ liệu mẫu (không phải dữ liệu thật, không lưu được).<div class="row" style="justify-content:flex-start;margin-top:8px"><a class="btn" href="/google-sheet/xom-tro-van-hoa.xlsx" download>Tải bản Excel mẫu</a><button class="btn" data-demo>Xem thử với dữ liệu mẫu</button></div></div>`:''}`;
  $('#login').classList.add('on');setTimeout(()=>{const i=$('#l_ph');if(i)i.focus()},50)}
 async function doLogin(){
  const phone=$('#l_ph').value.trim(),password=$('#l_pw').value,m=$('#l_msg'),b=$('#l_go');
@@ -167,18 +169,18 @@ async function pull(force){
  catch(e){SYNC.err='Không kết nối được Google Sheet – đang hiển thị dữ liệu lần tải gần nhất.';syncBar()}}
 async function push(ops,msg){
  if(DEMO){toast('Đang xem thử với dữ liệu mẫu – không lưu được. Hãy kết nối Google Sheet.');return false}
- if(PUBRO){toast('Đang đọc từ bản xuất bản (pubhtml): chưa ghi được lên Google Sheet. Cần cài Apps Script và đặt GOOGLE_SCRIPT_URL.');return false}
+ if(PUBRO){toast('Đang đọc từ bản xuất bản (pubhtml): chưa ghi được lên Google Sheet. Cần kết nối tài khoản dịch vụ Google (GOOGLE_SERVICE_ACCOUNT_JSON).');return false}
  if(RO){toast('Tài khoản của bạn chỉ có quyền xem.');return false}
  SYNC.busy=true;syncBar(QUEUE?'Đang lưu…':'Đang lưu lên Google Sheet…');
  try{const d=await api('write',{ops});SYNC.busy=false;
   if(d.status===401){logout(d.error);return false}
-  if(!d.ok)throw new Error(d.error||'Lưu thất bại');if(d.user)setUser(d.user);QUEUE=!!d.queue;load(d.data);render();if(msg)toast(QUEUE?msg.replace(/ lên Google Sheet$/,'')+' trên web – chờ đưa lên Google Sheet (cần cài Apps Script)':msg);return true}
+  if(!d.ok)throw new Error(d.error||'Lưu thất bại');if(d.user)setUser(d.user);QUEUE=!!d.queue;load(d.data);render();if(msg)toast(QUEUE?msg.replace(/ lên Google Sheet$/,'')+' trên web – chờ đưa lên Google Sheet (cần kết nối tài khoản dịch vụ Google)':msg);return true}
  catch(e){SYNC.busy=false;toast('Lỗi: '+e.message);pull(true);return false}}
 function syncBar(t){const b=$('#sync');if(!b)return;
  if(DEMO){b.className='sync ro';b.textContent='ĐANG XEM THỬ VỚI DỮ LIỆU MẪU – chưa kết nối Google Sheet, mọi thay đổi không được lưu.';return}
  b.className='sync'+(SYNC.err?' err':PUBRO?' ro':'');
- if(QUEUE&&!t&&!SYNC.err){b.className='sync q';b.textContent='Đang đọc từ Google Sheet đã xuất bản (pubhtml) – sửa trên sheet hiện lên web sau khoảng 1–5 phút. Dữ liệu thêm/sửa trên web được lưu ngay'+(PENDING?' ('+PENDING+' thay đổi đang chờ, gắn nhãn "chờ lên sheet")':'')+' và tự ghi vào đúng cột Google Sheet khi cài Apps Script (GOOGLE_SCRIPT_URL). Cập nhật lúc '+new Date(SYNC.at).toLocaleTimeString('vi');return}
- if(PUBRO&&!t&&!SYNC.err){b.textContent='Đang đọc từ Google Sheet đã xuất bản (pubhtml) – sửa trên sheet sẽ hiện lên web sau khoảng 1–5 phút. Nhập từ web lên sheet cần cài Apps Script. Cập nhật lúc '+new Date(SYNC.at).toLocaleTimeString('vi');return}
+ if(QUEUE&&!t&&!SYNC.err){b.className='sync q';b.textContent='Đang đọc từ Google Sheet đã xuất bản (pubhtml) – sửa trên sheet hiện lên web sau khoảng 1–5 phút. Dữ liệu thêm/sửa trên web được lưu ngay'+(PENDING?' ('+PENDING+' thay đổi đang chờ, gắn nhãn "chờ lên sheet")':'')+' và tự ghi vào đúng cột Google Sheet khi kết nối tài khoản dịch vụ Google (GOOGLE_SERVICE_ACCOUNT_JSON). Cập nhật lúc '+new Date(SYNC.at).toLocaleTimeString('vi');return}
+ if(PUBRO&&!t&&!SYNC.err){b.textContent='Đang đọc từ Google Sheet đã xuất bản (pubhtml) – sửa trên sheet sẽ hiện lên web sau khoảng 1–5 phút. Nhập từ web lên sheet cần kết nối tài khoản dịch vụ Google. Cập nhật lúc '+new Date(SYNC.at).toLocaleTimeString('vi');return}
  b.textContent=t||SYNC.err||('Đã kết nối Google Sheet'+(RO?' (quyền chỉ xem)':'')+'. ')+(SYNC.at&&!SYNC.err&&!t?'Cập nhật lúc '+new Date(SYNC.at).toLocaleTimeString('vi')+' · tự làm mới mỗi 20 giây':'')}
 const facName=id=>(own(id)||{}).fac||'';
 const resRec=x=>({fac:facName(x.fac),name:x.name,dob:x.dob,cccd:x.cccd,addr:x.addr,job:x.job,income:x.income,moveIn:x.moveIn,status:x.status,regDate:x.regDate,expiry:x.expiry,fine:x.fine,note:x.note});
