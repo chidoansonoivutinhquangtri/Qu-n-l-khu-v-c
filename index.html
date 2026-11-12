@@ -137,7 +137,8 @@ async function api(action,extra){
  d.status=r.status;return d}
 // Quyền: Quản trị, Phó Quản trị = toàn quyền · Nhập liệu · Chỉ xem · Khách = chỉ xem số liệu tổng quan và nhập hồ sơ mới.
 const isAdm=()=>!!USER&&!DEMO&&(USER.role==='Quản trị'||USER.role==='Phó Quản trị');
-const isGuest=()=>!!USER&&!DEMO&&USER.role==='Khách';
+// Mọi tài khoản không phải Quản trị / Phó Quản trị chỉ thấy số liệu tổng quan (máy chủ cũng không gửi thông tin cá nhân).
+const isGuest=()=>!!USER&&!DEMO&&!isAdm();
 function setUser(u,published){USER=u;RO=DEMO||PUBRO||!u||u.role==='Chỉ xem';document.body.classList.toggle('ro',RO);document.body.classList.toggle('guest',isGuest());
  if(isGuest()){view='home';$('#q').value=''}
  const w=$('#who');w.classList.toggle('on',!!u);
@@ -252,8 +253,8 @@ function render(){
 function guestV(){const c={red:0,yellow:0,green:0,grey:0};S.res.forEach(r=>c[st(r).k]++);
  const T=[['red','Chưa ĐK / hết hạn'],['yellow','Đến hạn (sắp hết hạn tạm trú)'],['green','Còn hạn (đã đăng ký)'],['grey','Không thuộc diện'],['all','Tổng số người']];
  return`<div class="tiles">`+T.map(t=>`<div class="tile static ${t[0]}"><b>${t[0]==='all'?S.res.length:c[t[0]]}</b>${t[1]}</div>`).join('')+`</div>
- <div class="sec"><h2>Nhập liệu</h2><p class="sub">Tài khoản Khách được nhập thêm hồ sơ mới. Hồ sơ sau khi lưu do Quản trị / Phó Quản trị quản lý; tài khoản Khách không xem lại được thông tin cá nhân.</p>
- <div class="row" style="justify-content:flex-start"><button class="btn pri" data-new="r">+ Thêm người cư trú</button><button class="btn pri" data-new="o">+ Thêm cơ sở</button></div></div>
+ ${RO?"":`<div class="sec"><h2>Nhập liệu</h2><p class="sub">Tài khoản của bạn được nhập thêm hồ sơ mới. Hồ sơ sau khi lưu do Quản trị / Phó Quản trị quản lý; chỉ Quản trị / Phó Quản trị xem được thông tin cá nhân.</p>
+ <div class="row" style="justify-content:flex-start"><button class="btn pri" data-new="r">+ Thêm người cư trú</button><button class="btn pri" data-new="o">+ Thêm cơ sở</button></div></div>`}
  <p class="sub">Nhắc trước ${S.cfg.days} ngày khi sắp hết hạn tạm trú · ${S.own.length} cơ sở · cập nhật ngày ${fmt(today().toLocaleDateString('sv'))}</p>`}
 function chips(B,cur,attr){const c={red:0,yellow:0,green:0,grey:0};B.forEach(r=>c[st(r).k]++);
  return`<button class="chip ${cur==='all'?'on':''}" data-${attr}="all">Tất cả (${B.length})</button>`+['red','yellow','green','grey'].map(k=>`<button class="chip ${cur===k?'on':''}" data-${attr}="${k}"><i class="${k}"></i>${STL[k]} (${c[k]})</button>`).join('')}
@@ -288,7 +289,7 @@ function saveF(t,id){
   return push([o?{kind:'own',op:'update',row:o.row,expect:o.name,rec}:{kind:'own',op:'add',rec}],'Đã lưu lên Google Sheet').then(ok=>{if(ok){if(o&&cur===o.fac)cur=x.fac;close();render()}})}}
 function resize(file,cb){const r=new FileReader();r.onload=()=>{const i=new Image();i.onload=()=>{const m=240,k=Math.min(1,m/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*k;c.height=i.height*k;c.getContext('2d').drawImage(i,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.72))};i.src=r.result};r.readAsDataURL(file)}
 // ---- dữ liệu & bảo mật ----
-function dataV(){const adm=isAdm();return`<div class="sec"><h2>Tài khoản đăng nhập</h2><p class="sub">Bạn đang đăng nhập: <b>${esc(USER?USER.name||USER.phone:'')}</b> (${esc(USER?USER.phone:'')}) · quyền <b>${esc(USER?USER.role:'')}</b>.<br>Tài khoản, mật khẩu và quyền được quản lý ở sheet <b>Tài khoản</b> trên Google Sheet (cột Số điện thoại, Mật khẩu, Họ tên, Quyền: Quản trị / Phó Quản trị / Nhập liệu / Chỉ xem / Khách, Trạng thái: Hoạt động / Khóa). Quản trị và Phó Quản trị có toàn quyền; Khách chỉ xem số liệu tổng quan và nhập hồ sơ mới, không xem được thông tin cá nhân và mục này. Khi đổi mật khẩu, đổi quyền hoặc khóa tài khoản trên sheet, phiên đang mở sẽ tự đăng xuất trong khoảng 20 giây.</p><div class="row" style="justify-content:flex-start"><button class="btn" data-logout>Đăng xuất</button></div></div>
+function dataV(){const adm=isAdm();return`<div class="sec"><h2>Tài khoản đăng nhập</h2><p class="sub">Bạn đang đăng nhập: <b>${esc(USER?USER.name||USER.phone:'')}</b> (${esc(USER?USER.phone:'')}) · quyền <b>${esc(USER?USER.role:'')}</b>.<br>Tài khoản, mật khẩu và quyền được quản lý ở sheet <b>Tài khoản</b> trên Google Sheet (cột Số điện thoại, Mật khẩu, Họ tên, Quyền: Quản trị / Phó Quản trị / Nhập liệu / Chỉ xem / Khách, Trạng thái: Hoạt động / Khóa). Chỉ Quản trị và Phó Quản trị có toàn quyền và xem được thông tin cá nhân; các quyền khác chỉ xem số liệu tổng quan (Nhập liệu / Khách được nhập hồ sơ mới). Khi đổi mật khẩu, đổi quyền hoặc khóa tài khoản trên sheet, phiên đang mở sẽ tự đăng xuất trong khoảng 20 giây.</p><div class="row" style="justify-content:flex-start"><button class="btn" data-logout>Đăng xuất</button></div></div>
 <div class="sec"><h2>Số ngày nhắc trước hạn</h2><input id="days" type="number" min="1" max="120" value="${S.cfg.days}" style="max-width:120px" ${adm?'':'disabled'}> <span class="sub">Mặc định 20 ngày. Tình trạng "Đến hạn" khi còn từ chừng này ngày trở xuống.${adm?'':' Chỉ tài khoản Quản trị / Phó Quản trị được đổi.'}</span></div>
 <div class="sec"><h2>Sao lưu và chuyển dữ liệu</h2><p class="sub">Dữ liệu được lưu trực tiếp trên Google Sheet và đồng bộ 2 chiều: nhập ở web sẽ ghi lên sheet, sửa trên sheet sẽ tự hiện trên web. <button class="btn" data-refresh>Làm mới ngay</button></p><div class="row" style="justify-content:flex-start"><button class="btn" data-ex="json">Xuất sao lưu (có ảnh)</button><button class="btn" data-ex="res">Bảng người cư trú (dán vào Google Sheets)</button><button class="btn" data-ex="own">Bảng cơ sở (dán vào Google Sheets)</button></div>
 <textarea id="tx" placeholder="Nội dung xuất ra hiện ở đây. Để nhập: dán bản sao lưu hoặc dữ liệu từ Google Sheets vào ô này."></textarea>

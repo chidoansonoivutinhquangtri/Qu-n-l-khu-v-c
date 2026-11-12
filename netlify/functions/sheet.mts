@@ -23,8 +23,9 @@ const DATES = new Set(['dob', 'moveIn', 'regDate', 'expiry'])
 const ROLES = ['Quản trị', 'Phó Quản trị', 'Nhập liệu', 'Chỉ xem', 'Khách']
 // Toàn quyền (đổi số ngày nhắc, khôi phục sao lưu, xóa toàn bộ, xem mục Dữ liệu & bảo mật).
 const ADMIN = new Set(['Quản trị', 'Phó Quản trị'])
-// Khách: chỉ xem số liệu tổng quan và nhập hồ sơ mới; không bao giờ nhận thông tin cá nhân.
-const GUEST = 'Khách'
+// Mọi quyền KHÁC Quản trị / Phó Quản trị (Nhập liệu, Khách, Chỉ xem…) bị giới hạn:
+// chỉ xem số liệu tổng quan, không bao giờ nhận thông tin cá nhân; Nhập liệu / Khách được nhập hồ sơ mới.
+const limited = (role: string) => !ADMIN.has(role)
 const SESSION_MS = 12 * 3600_000
 const headers = { 'cache-control': 'no-store' }
 const ACTIONS = new Set(['login', 'logout', 'read', 'write'])
@@ -38,8 +39,8 @@ function guard(role: string, ops: any[]) {
   for (const op of ops) {
     if ((op?.op === 'cfg' || op?.op === 'wipe') && !ADMIN.has(role))
       throw new HttpError(403, 'Chỉ tài khoản Quản trị hoặc Phó Quản trị được thực hiện thao tác này')
-    if (role === GUEST && !(op?.op === 'add' && (op.kind === 'res' || op.kind === 'own')))
-      throw new HttpError(403, 'Tài khoản Khách chỉ được nhập thêm hồ sơ mới')
+    if (limited(role) && !(op?.op === 'add' && (op.kind === 'res' || op.kind === 'own')))
+      throw new HttpError(403, 'Tài khoản của bạn chỉ được nhập thêm hồ sơ mới')
   }
 }
 // Dữ liệu gửi cho Khách: chỉ tên cơ sở (để chọn khi nhập) và tình trạng tạm trú để đếm số liệu tổng quan.
@@ -54,7 +55,7 @@ function guestData(d: any) {
   }
 }
 function scrub(out: any) {
-  if (out && out.user && out.user.role === GUEST) {
+  if (out && out.user && limited(out.user.role)) {
     if (out.data) out.data = guestData(out.data)
     delete out.results
   }

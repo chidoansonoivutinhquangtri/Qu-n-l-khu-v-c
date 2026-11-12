@@ -17,7 +17,7 @@
  *
  * SHEET "Tài khoản" (dữ liệu từ dòng 5):
  *  B Số điện thoại (ID đăng nhập) · C Mật khẩu · D Họ tên · E Quyền (Quản trị / Phó Quản trị / Nhập liệu / Chỉ xem / Khách)
- *    Quản trị, Phó Quản trị: toàn quyền. Khách: chỉ xem số liệu tổng quan + nhập hồ sơ mới, không xem thông tin cá nhân.
+ *    Quản trị, Phó Quản trị: toàn quyền. Các quyền còn lại (Nhập liệu, Khách, Chỉ xem): chỉ xem số liệu tổng quan, không xem thông tin cá nhân; Nhập liệu / Khách được nhập hồ sơ mới.
  *  F Trạng thái (Hoạt động / Khóa) · G Ghi chú
  *  Đổi mật khẩu, đổi quyền, khóa hoặc xóa dòng → phiên đăng nhập cũ bị đăng xuất trong vòng ~20 giây.
  */
@@ -38,7 +38,7 @@ var TEXTS = { cccd: 1, phone: 1 };
 
 var ROLES = ['Quản trị', 'Phó Quản trị', 'Nhập liệu', 'Chỉ xem', 'Khách'];
 var ADMIN = { 'Quản trị': 1, 'Phó Quản trị': 1 };
-var GUEST = 'Khách';
+function limited_(role) { return !ADMIN[role]; } // mọi quyền khác Quản trị / Phó Quản trị
 
 var SESSION_SEC = 6 * 3600;   // phiên đăng nhập 6 giờ (giới hạn của CacheService)
 var MAX_FAIL = 5;             // sai mật khẩu 5 lần → khóa tạm
@@ -224,7 +224,7 @@ function readAll_() {
 // Khách chỉ nhận tên cơ sở và tình trạng tạm trú (để đếm số liệu) – không có thông tin cá nhân.
 function dataFor_(user) {
   var d = readAll_();
-  if (user.role !== GUEST) return d;
+  if (!limited_(user.role)) return d;
   return {
     cfg: d.cfg, at: d.at,
     own: d.own.map(function (o, i) { return { row: i + 1, fac: o.fac }; }),
@@ -239,15 +239,15 @@ function write_(user, ops) {
   {
     if ((ops[i].op === 'wipe' || ops[i].op === 'cfg') && !ADMIN[user.role])
       return err_(403, 'Chỉ tài khoản Quản trị hoặc Phó Quản trị được thực hiện thao tác này');
-    if (user.role === GUEST && !(ops[i].op === 'add' && (ops[i].kind === 'res' || ops[i].kind === 'own')))
-      return err_(403, 'Tài khoản Khách chỉ được nhập thêm hồ sơ mới');
+    if (limited_(user.role) && !(ops[i].op === 'add' && (ops[i].kind === 'res' || ops[i].kind === 'own')))
+      return err_(403, 'Tài khoản của bạn chỉ được nhập thêm hồ sơ mới');
   }
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     var results = ops.map(apply_);
     SpreadsheetApp.flush();
-    if (user.role === GUEST) return { ok: true, user: pub_(user), data: dataFor_(user) };
+    if (limited_(user.role)) return { ok: true, user: pub_(user), data: dataFor_(user) };
     return { ok: true, results: results, user: pub_(user), data: readAll_() };
   } catch (x) {
     return err_(x.code || 409, String(x && x.message || x));
