@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Xóm trọ văn hóa</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/favicon.png">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#14231c;--mute:#5b6b62;--card:#fff;--line:#d5ddd6;--soft:#eef3ee;--g0:#06261b;--g1:#0f5132;--gold:#f6c90e;
@@ -21,6 +25,8 @@ h1{margin:0;font-weight:900;font-size:clamp(24px,5.2vw,46px);letter-spacing:.02e
 .mgr{margin:6px 0 0;font-size:12px;color:#e8efe9;opacity:.92}
 .wrap{max-width:1100px;margin:0 auto;padding:16px}
 .sb{display:flex;gap:8px;margin-bottom:12px}
+body.guest .sb{display:none}
+.tile.static{cursor:default}
 .sb input{flex:1;padding:12px 14px;border-radius:8px;border:2px solid var(--gold);font:inherit;background:var(--card);color:var(--ink)}
 nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 nav button,.btn{font:inherit;font-weight:700;padding:9px 14px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
@@ -129,7 +135,11 @@ async function api(action,extra){
  const r=await fetch(API,{method:'POST',cache:'no-store',headers:{'content-type':'application/json'},body:JSON.stringify({action,token:TOKEN,...extra})});
  let d={};try{d=await r.json()}catch(e){d={ok:false,error:'Máy chủ không phản hồi'}}
  d.status=r.status;return d}
-function setUser(u,published){USER=u;RO=DEMO||PUBRO||!u||u.role==='Chỉ xem';document.body.classList.toggle('ro',RO);
+// Quyền: Quản trị, Phó Quản trị = toàn quyền · Nhập liệu · Chỉ xem · Khách = chỉ xem số liệu tổng quan và nhập hồ sơ mới.
+const isAdm=()=>!!USER&&!DEMO&&(USER.role==='Quản trị'||USER.role==='Phó Quản trị');
+const isGuest=()=>!!USER&&!DEMO&&USER.role==='Khách';
+function setUser(u,published){USER=u;RO=DEMO||PUBRO||!u||u.role==='Chỉ xem';document.body.classList.toggle('ro',RO);document.body.classList.toggle('guest',isGuest());
+ if(isGuest()){view='home';$('#q').value=''}
  const w=$('#who');w.classList.toggle('on',!!u);
  w.innerHTML=u?`<b>${esc(u.name||u.phone)}</b><br>${esc(u.phone)} · ${esc(u.role)}<br><button class="btn" data-logout>${DEMO?'Thoát xem thử':'Đăng xuất'}</button>`:'';
  if(published!==undefined)$('#pubw').innerHTML=published?'<div class="warn">CẢNH BÁO BẢO MẬT: Google Sheet vẫn đang "Xuất bản lên web" – ai có đường link đều xem được CCCD và mật khẩu. Vào Google Sheet → Tệp → Chia sẻ → Xuất bản lên web → Dừng xuất bản.</div>':''}
@@ -140,7 +150,7 @@ function loginUI(msg,setup){
  <form id="lf" class="fg" autocomplete="on"><div><label for="l_ph">Số điện thoại</label><input id="l_ph" type="tel" inputmode="tel" autocomplete="username" required></div>
  <div><label for="l_pw">Mật khẩu</label><input id="l_pw" type="password" autocomplete="current-password" required></div>
  <button class="btn pri" type="submit" id="l_go" ${setup===false?'disabled':''}>Đăng nhập</button></form><div class="msg" id="l_msg">${esc(msg||'')}</div>
- ${setup===false?`<div class="note"><b>Chưa đọc được Google Sheet.</b> Hãy tải bản Excel mẫu lên Google Sheet và chọn Tệp → Chia sẻ → Xuất bản lên web → Toàn bộ tài liệu (hoặc cài Apps Script và đặt <code>GOOGLE_SCRIPT_URL</code>). Trong lúc chờ, có thể xem thử giao diện với dữ liệu mẫu (không phải dữ liệu thật, không lưu được).<div class="row" style="justify-content:flex-start;margin-top:8px"><a class="btn" href="/google-sheet/xom-tro-van-hoa.xlsx" download>Tải bản Excel mẫu</a><button class="btn" data-demo>Xem thử với dữ liệu mẫu</button></div></div>`:''}`;
+ ${setup===false?`<div class="note"><b>Chưa đọc được Google Sheet.</b> Hãy tải bản Excel mẫu lên Google Sheet và chọn Tệp → Chia sẻ → Xuất bản lên web → Toàn bộ tài liệu (hoặc đặt <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> để ghi thẳng lên sheet). Trong lúc chờ, có thể xem thử giao diện với dữ liệu mẫu (không phải dữ liệu thật, không lưu được).<div class="row" style="justify-content:flex-start;margin-top:8px"><a class="btn" href="/google-sheet/xom-tro-van-hoa.xlsx" download>Tải bản Excel mẫu</a><button class="btn" data-demo>Xem thử với dữ liệu mẫu</button></div></div>`:''}`;
  $('#login').classList.add('on');setTimeout(()=>{const i=$('#l_ph');if(i)i.focus()},50)}
 async function doLogin(){
  const phone=$('#l_ph').value.trim(),password=$('#l_pw').value,m=$('#l_msg'),b=$('#l_go');
@@ -167,18 +177,18 @@ async function pull(force){
  catch(e){SYNC.err='Không kết nối được Google Sheet – đang hiển thị dữ liệu lần tải gần nhất.';syncBar()}}
 async function push(ops,msg){
  if(DEMO){toast('Đang xem thử với dữ liệu mẫu – không lưu được. Hãy kết nối Google Sheet.');return false}
- if(PUBRO){toast('Đang đọc từ bản xuất bản (pubhtml): chưa ghi được lên Google Sheet. Cần cài Apps Script và đặt GOOGLE_SCRIPT_URL.');return false}
+ if(PUBRO){toast('Đang đọc từ bản xuất bản (pubhtml): chưa ghi được lên Google Sheet. Cần kết nối tài khoản dịch vụ Google (GOOGLE_SERVICE_ACCOUNT_JSON).');return false}
  if(RO){toast('Tài khoản của bạn chỉ có quyền xem.');return false}
  SYNC.busy=true;syncBar(QUEUE?'Đang lưu…':'Đang lưu lên Google Sheet…');
  try{const d=await api('write',{ops});SYNC.busy=false;
   if(d.status===401){logout(d.error);return false}
-  if(!d.ok)throw new Error(d.error||'Lưu thất bại');if(d.user)setUser(d.user);QUEUE=!!d.queue;load(d.data);render();if(msg)toast(QUEUE?msg.replace(/ lên Google Sheet$/,'')+' trên web – chờ đưa lên Google Sheet (cần cài Apps Script)':msg);return true}
+  if(!d.ok)throw new Error(d.error||'Lưu thất bại');if(d.user)setUser(d.user);QUEUE=!!d.queue;load(d.data);render();if(msg)toast(QUEUE?msg.replace(/ lên Google Sheet$/,'')+' trên web – chờ đưa lên Google Sheet (cần kết nối tài khoản dịch vụ Google)':msg);return true}
  catch(e){SYNC.busy=false;toast('Lỗi: '+e.message);pull(true);return false}}
 function syncBar(t){const b=$('#sync');if(!b)return;
  if(DEMO){b.className='sync ro';b.textContent='ĐANG XEM THỬ VỚI DỮ LIỆU MẪU – chưa kết nối Google Sheet, mọi thay đổi không được lưu.';return}
  b.className='sync'+(SYNC.err?' err':PUBRO?' ro':'');
- if(QUEUE&&!t&&!SYNC.err){b.className='sync q';b.textContent='Đang đọc từ Google Sheet đã xuất bản (pubhtml) – sửa trên sheet hiện lên web sau khoảng 1–5 phút. Dữ liệu thêm/sửa trên web được lưu ngay'+(PENDING?' ('+PENDING+' thay đổi đang chờ, gắn nhãn "chờ lên sheet")':'')+' và tự ghi vào đúng cột Google Sheet khi cài Apps Script (GOOGLE_SCRIPT_URL). Cập nhật lúc '+new Date(SYNC.at).toLocaleTimeString('vi');return}
- if(PUBRO&&!t&&!SYNC.err){b.textContent='Đang đọc từ Google Sheet đã xuất bản (pubhtml) – sửa trên sheet sẽ hiện lên web sau khoảng 1–5 phút. Nhập từ web lên sheet cần cài Apps Script. Cập nhật lúc '+new Date(SYNC.at).toLocaleTimeString('vi');return}
+ if(QUEUE&&!t&&!SYNC.err){b.className='sync q';b.textContent='Đang đọc từ Google Sheet đã xuất bản (pubhtml) – sửa trên sheet hiện lên web sau khoảng 1–5 phút. Dữ liệu thêm/sửa trên web được lưu ngay'+(PENDING?' ('+PENDING+' thay đổi đang chờ, gắn nhãn "chờ lên sheet")':'')+' và tự ghi vào đúng cột Google Sheet khi kết nối tài khoản dịch vụ Google (GOOGLE_SERVICE_ACCOUNT_JSON). Cập nhật lúc '+new Date(SYNC.at).toLocaleTimeString('vi');return}
+ if(PUBRO&&!t&&!SYNC.err){b.textContent='Đang đọc từ Google Sheet đã xuất bản (pubhtml) – sửa trên sheet sẽ hiện lên web sau khoảng 1–5 phút. Nhập từ web lên sheet cần kết nối tài khoản dịch vụ Google. Cập nhật lúc '+new Date(SYNC.at).toLocaleTimeString('vi');return}
  b.textContent=t||SYNC.err||('Đã kết nối Google Sheet'+(RO?' (quyền chỉ xem)':'')+'. ')+(SYNC.at&&!SYNC.err&&!t?'Cập nhật lúc '+new Date(SYNC.at).toLocaleTimeString('vi')+' · tự làm mới mỗi 20 giây':'')}
 const facName=id=>(own(id)||{}).fac||'';
 const resRec=x=>({fac:facName(x.fac),name:x.name,dob:x.dob,cccd:x.cccd,addr:x.addr,job:x.job,income:x.income,moveIn:x.moveIn,status:x.status,regDate:x.regDate,expiry:x.expiry,fine:x.fine,note:x.note});
@@ -207,13 +217,15 @@ const stLine=s=>`<span class="st">${s.n} người${s.r?` · <b class="r">${s.r} 
 // ---- giao diện ----
 let view='home',flt='all',ff='',cur='',dflt='all';
 const tabs=[['home','Tổng quan'],['res','Người cư trú'],['fac','Cơ sở'],['data','Dữ liệu & bảo mật']];
-function nav(){$('#nav').innerHTML=tabs.map(t=>`<button data-v="${t[0]}" class="${(view==='facd'?'fac':view)===t[0]&&!$('#q').value.trim()?'on':''}">${t[1]}</button>`).join('')}
+function nav(){$('#nav').innerHTML=(isGuest()?tabs.slice(0,1):tabs).map(t=>`<button data-v="${t[0]}" class="${(view==='facd'?'fac':view)===t[0]&&!$('#q').value.trim()?'on':''}">${t[1]}</button>`).join('')}
 function resTable(list){
  if(!list.length)return'<div class="empty">Chưa có dữ liệu phù hợp.</div>';
  return`<div class="tw"><table><thead><tr><th>Họ tên</th><th>Số CCCD</th><th>Cơ sở</th><th>Hạn tạm trú</th><th>Trạng thái</th></tr></thead><tbody>`+
  list.map(r=>{const s=st(r),f=own(r.fac);return`<tr class="${s.k}" tabindex="0" data-r="${r.id}"><td><div class="who">${av(r.photo,r.name)}<div><b>${esc(r.name)}</b>${pd(r)}<br><small>${fmt(r.dob)}</small></div></div></td><td>${esc(r.cccd)}</td><td>${f?esc(f.fac):esc(r.facName||'—')}</td><td>${fmt(r.expiry)||'—'}</td><td>${badge(s)}</td></tr>`}).join('')+'</tbody></table></div>'}
 function render(){
+ if(isGuest()){view='home';$('#q').value=''}
  nav();syncBar();const q=$('#q').value.trim(),a=$('#app');
+ if(isGuest())return a.innerHTML=guestV();
  if(q)return a.innerHTML=search(q);
  if(view==='home'){
   const c={red:0,yellow:0,green:0,grey:0};S.res.forEach(r=>c[st(r).k]++);
@@ -236,6 +248,13 @@ function render(){
   S.own.map(o=>{const s=facSt(o);return`<div class="fc ${s.k}" tabindex="0" data-o="${o.id}">${av(o.photo,o.name)}<div style="flex:1"><b>${esc(o.fac)}</b>${pd(o)}<br>Chủ nhà: ${esc(o.name)}<br><span class="sub">${fmt(o.dob)} · CCCD ${esc(o.cccd)}${o.phone?' · '+esc(o.phone):''}</span><br><span class="b ${s.k}">${s.l}</span> ${stLine(s)}</div></div>`}).join('')+'</div>'}
  if(view==='data')a.innerHTML=dataV();
 }
+// Tài khoản Khách: chỉ số liệu tổng hợp (máy chủ không gửi thông tin cá nhân) và nút nhập hồ sơ mới.
+function guestV(){const c={red:0,yellow:0,green:0,grey:0};S.res.forEach(r=>c[st(r).k]++);
+ const T=[['red','Chưa ĐK / hết hạn'],['yellow','Đến hạn (sắp hết hạn tạm trú)'],['green','Còn hạn (đã đăng ký)'],['grey','Không thuộc diện'],['all','Tổng số người']];
+ return`<div class="tiles">`+T.map(t=>`<div class="tile static ${t[0]}"><b>${t[0]==='all'?S.res.length:c[t[0]]}</b>${t[1]}</div>`).join('')+`</div>
+ <div class="sec"><h2>Nhập liệu</h2><p class="sub">Tài khoản Khách được nhập thêm hồ sơ mới. Hồ sơ sau khi lưu do Quản trị / Phó Quản trị quản lý; tài khoản Khách không xem lại được thông tin cá nhân.</p>
+ <div class="row" style="justify-content:flex-start"><button class="btn pri" data-new="r">+ Thêm người cư trú</button><button class="btn pri" data-new="o">+ Thêm cơ sở</button></div></div>
+ <p class="sub">Nhắc trước ${S.cfg.days} ngày khi sắp hết hạn tạm trú · ${S.own.length} cơ sở · cập nhật ngày ${fmt(today().toLocaleDateString('sv'))}</p>`}
 function chips(B,cur,attr){const c={red:0,yellow:0,green:0,grey:0};B.forEach(r=>c[st(r).k]++);
  return`<button class="chip ${cur==='all'?'on':''}" data-${attr}="all">Tất cả (${B.length})</button>`+['red','yellow','green','grey'].map(k=>`<button class="chip ${cur===k?'on':''}" data-${attr}="${k}"><i class="${k}"></i>${STL[k]} (${c[k]})</button>`).join('')}
 function search(q){
@@ -269,8 +288,8 @@ function saveF(t,id){
   return push([o?{kind:'own',op:'update',row:o.row,expect:o.name,rec}:{kind:'own',op:'add',rec}],'Đã lưu lên Google Sheet').then(ok=>{if(ok){if(o&&cur===o.fac)cur=x.fac;close();render()}})}}
 function resize(file,cb){const r=new FileReader();r.onload=()=>{const i=new Image();i.onload=()=>{const m=240,k=Math.min(1,m/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*k;c.height=i.height*k;c.getContext('2d').drawImage(i,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.72))};i.src=r.result};r.readAsDataURL(file)}
 // ---- dữ liệu & bảo mật ----
-function dataV(){const adm=USER&&USER.role==='Quản trị'&&!DEMO;return`<div class="sec"><h2>Tài khoản đăng nhập</h2><p class="sub">Bạn đang đăng nhập: <b>${esc(USER?USER.name||USER.phone:'')}</b> (${esc(USER?USER.phone:'')}) · quyền <b>${esc(USER?USER.role:'')}</b>.<br>Tài khoản, mật khẩu và quyền được quản lý ở sheet <b>Tài khoản</b> trên Google Sheet (cột Số điện thoại, Mật khẩu, Họ tên, Quyền: Quản trị / Nhập liệu / Chỉ xem, Trạng thái: Hoạt động / Khóa). Khi đổi mật khẩu, đổi quyền hoặc khóa tài khoản trên sheet, phiên đang mở sẽ tự đăng xuất trong khoảng 20 giây.</p><div class="row" style="justify-content:flex-start"><button class="btn" data-logout>Đăng xuất</button></div></div>
-<div class="sec"><h2>Số ngày nhắc trước hạn</h2><input id="days" type="number" min="1" max="120" value="${S.cfg.days}" style="max-width:120px" ${adm?'':'disabled'}> <span class="sub">Mặc định 20 ngày. Tình trạng "Đến hạn" khi còn từ chừng này ngày trở xuống.${adm?'':' Chỉ tài khoản Quản trị được đổi.'}</span></div>
+function dataV(){const adm=isAdm();return`<div class="sec"><h2>Tài khoản đăng nhập</h2><p class="sub">Bạn đang đăng nhập: <b>${esc(USER?USER.name||USER.phone:'')}</b> (${esc(USER?USER.phone:'')}) · quyền <b>${esc(USER?USER.role:'')}</b>.<br>Tài khoản, mật khẩu và quyền được quản lý ở sheet <b>Tài khoản</b> trên Google Sheet (cột Số điện thoại, Mật khẩu, Họ tên, Quyền: Quản trị / Phó Quản trị / Nhập liệu / Chỉ xem / Khách, Trạng thái: Hoạt động / Khóa). Quản trị và Phó Quản trị có toàn quyền; Khách chỉ xem số liệu tổng quan và nhập hồ sơ mới, không xem được thông tin cá nhân và mục này. Khi đổi mật khẩu, đổi quyền hoặc khóa tài khoản trên sheet, phiên đang mở sẽ tự đăng xuất trong khoảng 20 giây.</p><div class="row" style="justify-content:flex-start"><button class="btn" data-logout>Đăng xuất</button></div></div>
+<div class="sec"><h2>Số ngày nhắc trước hạn</h2><input id="days" type="number" min="1" max="120" value="${S.cfg.days}" style="max-width:120px" ${adm?'':'disabled'}> <span class="sub">Mặc định 20 ngày. Tình trạng "Đến hạn" khi còn từ chừng này ngày trở xuống.${adm?'':' Chỉ tài khoản Quản trị / Phó Quản trị được đổi.'}</span></div>
 <div class="sec"><h2>Sao lưu và chuyển dữ liệu</h2><p class="sub">Dữ liệu được lưu trực tiếp trên Google Sheet và đồng bộ 2 chiều: nhập ở web sẽ ghi lên sheet, sửa trên sheet sẽ tự hiện trên web. <button class="btn" data-refresh>Làm mới ngay</button></p><div class="row" style="justify-content:flex-start"><button class="btn" data-ex="json">Xuất sao lưu (có ảnh)</button><button class="btn" data-ex="res">Bảng người cư trú (dán vào Google Sheets)</button><button class="btn" data-ex="own">Bảng cơ sở (dán vào Google Sheets)</button></div>
 <textarea id="tx" placeholder="Nội dung xuất ra hiện ở đây. Để nhập: dán bản sao lưu hoặc dữ liệu từ Google Sheets vào ô này."></textarea>
 <div class="row" style="justify-content:flex-start"><button class="btn" data-cp>Sao chép</button>${adm?'<button class="btn pri" data-im="json">Khôi phục từ bản sao lưu</button>':''}<button class="btn pri" data-im="res">Nhập người cư trú</button><button class="btn pri" data-im="own">Nhập cơ sở</button></div><p class="sub">Cột bảng người cư trú: Cơ sở, Họ tên, Ngày sinh, CCCD, Thường trú, Nghề nghiệp, Thu nhập, Ngày vào ở, Tình trạng ĐKTT, Ngày ĐKTT, Hạn tạm trú, Xử phạt, Ghi chú (ngày dạng dd/mm/yyyy). Bảng cơ sở: Tên cơ sở, Chủ nhà, Ngày sinh, CCCD, Loại hình, SĐT, Số phòng, Ghi chú. Dòng nhập vào được thêm vào cuối Google Sheet.</p></div>
@@ -302,6 +321,7 @@ async function pinOk(mode){const p=$('#pin').value;if(!/^\d{4,8}$/.test(p))retur
 document.addEventListener('click',e=>{const t=e.target.closest('button,tr[data-r],.fc,[data-x]');if(!t)return;const d=t.dataset;
  if('logout'in d){if(confirm(DEMO?'Thoát chế độ xem thử?':'Đăng xuất khỏi ứng dụng?'))logout();return}
  if('demo'in d)return demo();
+ if(isGuest()&&!(d.new||'x'in d||d.sv||'pinx'in d||d.pinok))return;
  if(d.v){view=d.v;$('#q').value='';render()}
  else if(d.go){view='res';flt=d.go==='red'||d.go==='yellow'||d.go==='green'||d.go==='grey'?d.go:'all';ff='';render()}
  else if(d.f){flt=d.f;render()}
